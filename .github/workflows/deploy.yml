@@ -1,0 +1,60 @@
+name: Build and Deploy
+
+# Run this workflow whenever you push to the main branch.
+on:
+  push:
+    branches: [main]
+  # Also allow running it manually from the Actions tab.
+  workflow_dispatch:
+
+# Permissions the workflow needs to publish to GitHub Pages.
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+# If you push again while a run is in progress, cancel the old one.
+concurrency:
+  group: pages
+  cancel-in-progress: true
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      # 1. Grab a copy of your repository onto the temporary build machine.
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      # 2. Install Node.js (LTS) on the build machine.
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+
+      # 3. Download the project's dependencies (React, Vite, etc.).
+      - name: Install dependencies
+        run: npm ci
+
+      # 4. Compile + bundle the app into the dist/ folder.
+      - name: Build
+        run: npm run build
+
+      # 5. Hand the dist/ folder to the Pages deploy step.
+      - name: Upload build output
+        uses: actions/upload-pages-artifact@v3
+        with:
+          path: dist
+
+  deploy:
+    # Only deploy after the build job succeeds.
+    needs: build
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - name: Deploy to GitHub Pages
+        id: deployment
+        uses: actions/deploy-pages@v4
