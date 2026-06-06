@@ -4,7 +4,7 @@
 
 A browser-based tool for building D&D 5e monster stat blocks. Fill in the form and see a formatted stat block update in real time. Print directly from the browser when you're done.
 
-I asked a friend for a tool to crate statblocks and they, in a way, said, "write your own".
+I asked a friend for a tool to create statblocks and they, in a way, said, "write your own".
 
 ## Features
 
@@ -14,7 +14,7 @@ I asked a friend for a tool to crate statblocks and they, in a way, said, "write
 - Input dice rolls for HP or use a flat entry
 - Also use the structured dice entry for attacks' damage
 - Verify button flags any missing required fields
-- Print your statblock out for your games
+- Print your stat block out for your games
 
 ## Deployment
 
@@ -58,7 +58,7 @@ To run the app in development mode automatically on boot without staying in a te
 
 Create the following file: `/etc/systemd/system/statblockmaker.service` and add the below to it.
 
-Replace $USER with your username and $WORKING_DIRECTORY to the path you've cloned the repo into.
+Replace $USER with your username and $WORKING_DIRECTORY with the path you've cloned the repo into.
 
 ```ini
 [Unit]
@@ -76,7 +76,7 @@ Restart=on-failure
 WantedBy=multi-user.target
 ```
 
-#### Enable and start the service
+#### 2. Enable and start the service
 
 ```bash
 sudo systemctl daemon-reload
@@ -86,7 +86,7 @@ sudo systemctl start statblockmaker
 
 The app will be available at `http://<your-server-ip>:5173/StatBlockMaker/`
 
-#### Check status / logs
+#### 3. Check status / logs
 
 ```bash
 sudo systemctl status statblockmaker
