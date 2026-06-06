@@ -1,23 +1,32 @@
-# Stat Block Maker
+# 🐉 Stat Block Maker 📜
 
-A browser-based tool for building D&D 5e monster stat blocks. Fill in the form on the left and see a formatted stat block update in real time on the right. Print directly from the browser when you're done.
+## https://r3volv360.github.io/StatBlockMaker/
+
+A browser-based tool for building D&D 5e monster stat blocks. Fill in the form and see a formatted stat block update in real time. Print directly from the browser when you're done.
+
+I asked a friend for a tool to crate statblocks and they, in a way, said, "write your own".
 
 ## Features
 
-- All standard stat block fields: identity, defenses, ability scores, saving throws, skills, senses, speeds, damage immunities/resistances/vulnerabilities
+- All standard 5e customisable stat block fields. E.g. name, size, alignment, ability scores, actions, reactions, etc
+- Add a description to your creatures
 - Structured attack entries (to-hit, reach/range, typed damage components) alongside free-text actions
-- Bonus Actions, Reactions, Legendary Actions, Lair Actions, and Regional Effects
-- XP and Proficiency Bonus derived automatically from Challenge Rating
-- Passive Perception derived from Wisdom modifier or Perception skill bonus
-- Verify button flags any missing required fields before printing
-- Print mode previews ink-saving black-and-white output; the editor is hidden on actual print
+- Input dice rolls for HP or use a flat entry
+- Also use the structured dice entry for attacks' damage
+- Verify button flags any missing required fields
+- Print your statblock out for your games
 
-## Requirements
+## Deployment
 
-- Node.js v18+
-- npm
+For now, the website is built and deployed using GitHub Actions on each push to GitHub. It's hosted on GitHub Pages at https://r3volv360.github.io/StatBlockMaker/.
 
-## Getting Started (Local Development)
+## Development
+
+### Requirements
+
+Node.js v22+ and npm: https://nodejs.org/en/download
+
+### Getting Started
 
 ```bash
 git clone https://github.com/R3volv360/StatBlockMaker.git
@@ -26,7 +35,7 @@ npm install
 npm run dev
 ```
 
-Open the local URL shown in the terminal. The Adult Red Dragon is pre-loaded as an example — use **Clear** to start fresh.
+Then open the local URL shown in the terminal. The Adult Red Dragon is pre-loaded as an example — use **Clear** to start fresh.
 
 To expose on your local network (e.g. access from another device):
 
@@ -34,15 +43,22 @@ To expose on your local network (e.g. access from another device):
 npm run dev -- --host
 ```
 
-## Running as a Background Service (Debian/Ubuntu)
-
-To run the app automatically on boot without staying in a terminal:
-
-**1. Create the systemd service**
+### Testing
 
 ```bash
-sudo nano /etc/systemd/system/statblockmaker.service
+npm test            # run once
+npm run test:watch  # watch mode
 ```
+
+### Running as a Background Service (Linux)
+
+To run the app in development mode automatically on boot without staying in a terminal:
+
+#### 1. Create the systemd service
+
+Create the following file: `/etc/systemd/system/statblockmaker.service` and add the below to it.
+
+Replace $USER with your username and $WORKING_DIRECTORY to the path you've cloned the repo into.
 
 ```ini
 [Unit]
@@ -51,18 +67,16 @@ After=network.target
 
 [Service]
 Type=simple
-User=YOUR_USERNAME
-WorkingDirectory=/home/YOUR_USERNAME/StatBlockMaker
-ExecStart=/usr/bin/npm run dev -- --host
+User=$USER
+WorkingDirectory=$WORKING_DIRECTORY
+ExecStart=/usr/bin/env npm run dev -- --host
 Restart=on-failure
 
 [Install]
 WantedBy=multi-user.target
 ```
 
-Replace `YOUR_USERNAME` with your Linux username and adjust `WorkingDirectory` to match your actual path.
-
-**2. Enable and start the service**
+#### Enable and start the service
 
 ```bash
 sudo systemctl daemon-reload
@@ -70,21 +84,11 @@ sudo systemctl enable statblockmaker
 sudo systemctl start statblockmaker
 ```
 
-**3. Check status / logs**
+The app will be available at `http://<your-server-ip>:5173/StatBlockMaker/`
+
+#### Check status / logs
 
 ```bash
 sudo systemctl status statblockmaker
 journalctl -u statblockmaker -f
 ```
-
-The app will be available at `http://<your-server-ip>:5173/StatBlockMaker/`
-
-To allow the port through your firewall:
-
-```bash
-sudo ufw allow 5173
-```
-
-## Tech
-
-React 19, Vite. No external UI libraries. All styles are self-contained.

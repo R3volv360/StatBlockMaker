@@ -11,7 +11,7 @@ npm run preview   # serve the production build locally
 npm run lint      # run ESLint
 ```
 
-There is no test suite.
+Tests live in `src/__tests__/` — see the testing section below.
 
 ## Architecture
 
@@ -25,12 +25,14 @@ Action entries have a `kind` field — `"attack"` (structured fields: `toHit`, `
 
 `CR_TABLE` is the authoritative source for XP and proficiency bonus — those values are always derived from CR, never user inputs.
 
+For the full field reference including types, enums, and constraints, see **[DATA_MODEL.md](./DATA_MODEL.md)**.
+
 ### Two-pane layout
 
 - **Left pane (`.editor`, `no-print`)**: form-based editor, hidden during printing.
 - **Right pane (`.preview`)**: `<Statblock>` component that renders the stat block from `data` in real time.
 
-The "Print mode" toggle adds `.sb-print` / `.print-preview` classes for an ink-saving white-on-black preview. `window.print()` triggers the actual print path via `@media print` CSS rules that hide the editor pane entirely.
+Two print buttons — **Print (Colour)** and **Print (B&W)** — both run `validate(data)` first. Clean validation goes straight to print; any issues show a confirmation dialog. B&W print adds a `.print-bw` class to the root before calling `window.print()`, which triggers ink-saving overrides inside `@media print`. The editor pane is hidden on actual print via `.no-print`.
 
 ### Key derived values
 
@@ -44,6 +46,7 @@ All reusable editor pieces are defined at the bottom of `App.jsx`:
 
 | Component | Purpose |
 |---|---|
+| `HpEditor` | Hit Points: toggle between structured dice input and flat numeric value |
 | `KeyValueAdder` | Constrained key→value rows (saves, skills, senses, speeds); prevents duplicate keys |
 | `EntryList` | Repeatable name+description rows (traits, reactions, legendary actions) |
 | `ActionListEditor` | Actions/Bonus Actions: Attack / Other toggle per entry |
@@ -52,3 +55,12 @@ All reusable editor pieces are defined at the bottom of `App.jsx`:
 ### Styles
 
 All CSS is inlined as a template-literal constant `CSS` at the bottom of `App.jsx`, injected via a `<style>` tag. There is no separate stylesheet. CSS custom properties (`--maroon`, `--parchment`, `--serif`, `--display`) define the visual theme. Google Fonts (Cinzel, EB Garamond) are loaded via `@import` inside the style tag.
+
+## Testing
+
+```bash
+npm test          # run once
+npm run test:watch  # watch mode
+```
+
+Tests live in `src/__tests__/` and use Vitest. Pure logic functions exported from `App.jsx` are the primary test targets: `mod`, `rawMod`, `signed`, `endPunct`, `renderDamage`, and `validate`.

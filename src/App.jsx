@@ -63,7 +63,7 @@ const ABILITIES = [
 ];
 
 /* Ability modifier from a score, formatted with sign. */
-const mod = (score) => {
+export const mod = (score) => {
   const n = parseInt(score, 10);
   if (Number.isNaN(n)) return "+0";
   const m = Math.floor((n - 10) / 2);
@@ -87,7 +87,7 @@ const emptyAction = (kind = "other") => ({
 });
 
 /* Ensure a string ends with sentence punctuation. */
-const endPunct = (s) => {
+export const endPunct = (s) => {
   const t = (s || "").trim();
   if (!t) return t;
   return /[.!?]$/.test(t) ? t : t + ".";
@@ -95,13 +95,13 @@ const endPunct = (s) => {
 
 /* Render an attack's damage components, e.g.
    "19 (2d10 + 8) piercing damage plus 7 (2d6) fire damage." */
-const renderDamage = (item) => {
+export const renderDamage = (item) => {
   const comps = (item.damages || []).filter(
-    (d) => (d.amount && d.amount.trim()) || (d.type && d.type.trim())
+    (d) => (d.roll && diceStr(d.roll)) || (d.type && d.type.trim())
   );
-  if (comps.length === 0) return item.damage ? endPunct(item.damage) : "";
+  if (comps.length === 0) return "";
   const parts = comps.map((d) => {
-    const amt = (d.amount || "").trim();
+    const amt = renderRoll(d.roll);
     const typ = (d.type || "").trim().toLowerCase();
     return [amt, typ ? `${typ} damage` : amt ? "damage" : ""]
       .filter(Boolean)
@@ -141,27 +141,66 @@ const DAMAGE_TYPES = [
   "Necrotic", "Piercing", "Poison", "Psychic", "Radiant", "Slashing", "Thunder",
 ];
 
+const DIE_SIDES = [4, 6, 8, 10, 12, 20, 100];
+
 /* Format a stored bonus value with an explicit sign. */
-const signed = (v) => {
+export const signed = (v) => {
   const n = parseInt(v, 10);
   if (Number.isNaN(n)) return "+0";
   return (n >= 0 ? "+" : "") + n;
 };
-const rawMod = (score) => {
+export const rawMod = (score) => {
   const n = parseInt(score, 10);
   return Number.isNaN(n) ? 0 : Math.floor((n - 10) / 2);
 };
 
+/* Expected value (floored) of a DiceRoll: { dice: [{count, sides}], modifier }. */
+export const diceEV = (roll) => {
+  if (!roll || !roll.dice) return 0;
+  const sum = roll.dice.reduce(
+    (s, d) => s + (parseInt(d.count, 10) || 0) * ((parseInt(d.sides, 10) || 0) + 1) / 2,
+    0
+  );
+  return Math.floor(sum + (parseInt(roll.modifier, 10) || 0));
+};
+
+/* Formatted dice expression, e.g. "2d10 + 8" or "2d6 - 3". */
+export const diceStr = (roll) => {
+  if (!roll || !roll.dice) return "";
+  const parts = roll.dice
+    .filter((d) => (parseInt(d.count, 10) || 0) > 0)
+    .map((d) => `${d.count}d${d.sides}`);
+  if (parts.length === 0) return "";
+  const mod = parseInt(roll.modifier, 10) || 0;
+  let str = parts.join(" + ");
+  if (mod > 0) str += ` + ${mod}`;
+  else if (mod < 0) str += ` - ${Math.abs(mod)}`;
+  return str;
+};
+
+/* Full rendered value, e.g. "19 (2d10 + 8)". Empty string if no dice. */
+const renderRoll = (roll) => {
+  if (!roll) return "";
+  if (roll.mode === "flat") return roll.flat != null && roll.flat !== "" ? String(roll.flat) : "";
+  const str = diceStr(roll);
+  return str ? `${diceEV(roll)} (${str})` : "";
+};
+
 /* Required-field validation. Returns a list of human-readable issues. */
 const isBlank = (v) => v == null || String(v).trim() === "";
-function validate(d) {
+const isBlankRoll = (roll) => {
+  if (!roll) return true;
+  if (roll.mode === "flat") return roll.flat == null || String(roll.flat).trim() === "";
+  return !roll.dice || !roll.dice.some((d) => (parseInt(d.count, 10) || 0) > 0);
+};
+export function validate(d) {
   const issues = [];
   if (isBlank(d.name)) issues.push("Name");
   if (isBlank(d.size)) issues.push("Size");
   if (isBlank(d.type)) issues.push("Type");
   if (isBlank(d.alignment)) issues.push("Alignment");
   if (isBlank(d.ac)) issues.push("Armor Class");
-  if (isBlank(d.hp)) issues.push("Hit Points");
+  if (isBlankRoll(d.hp)) issues.push("Hit Points");
   if (isBlank(d.speedWalk)) issues.push("Speed");
   ["str", "dex", "con", "int", "wis", "cha"].forEach((k) => {
     if (isBlank(d[k])) issues.push(`${ABILITY_ABBR[k]} score`);
@@ -187,7 +226,7 @@ const ADULT_RED_DRAGON = {
     "The most covetous of the true dragons, red dragons tirelessly seek to increase their treasure hoards. They are exceptionally vain, even for dragons, and a red dragon's ego is bound up in its sense of superiority over all other creatures.",
   ac: "19",
   acNote: "Natural Armor",
-  hp: "256 (19d12+133)",
+  hp: { dice: [{ count: 19, sides: 12 }], modifier: 133 },
   speedWalk: "40",
   speeds: [
     { mode: "Climb", value: "40" },
@@ -204,15 +243,15 @@ const ADULT_RED_DRAGON = {
     { skill: "Perception", value: "13" },
     { skill: "Stealth", value: "6" },
   ],
-  vulnerabilities: "",
-  resistances: "",
-  damageImmunities: "Fire",
-  conditionImmunities: "",
+  vulnerabilities: [],
+  resistances: [],
+  damageImmunities: ["Fire"],
+  conditionImmunities: [],
   senses: [
     { sense: "Blindsight", value: "60" },
     { sense: "Darkvision", value: "120" },
   ],
-  languages: "Common, Draconic",
+  languages: ["Common", "Draconic"],
   cr: "17",
   traits: [
     {
@@ -233,8 +272,8 @@ const ADULT_RED_DRAGON = {
       toHit: "14",
       reach: "10",
       damages: [
-        { amount: "19 (2d10 + 8)", type: "Piercing" },
-        { amount: "7 (2d6)", type: "Fire" },
+        { roll: { dice: [{ count: 2, sides: 10 }], modifier: 8 }, type: "Piercing" },
+        { roll: { dice: [{ count: 2, sides: 6 }], modifier: 0 }, type: "Fire" },
       ],
     },
     {
@@ -243,7 +282,7 @@ const ADULT_RED_DRAGON = {
       attackType: "Melee",
       toHit: "14",
       reach: "5",
-      damages: [{ amount: "15 (2d6 + 8)", type: "Slashing" }],
+      damages: [{ roll: { dice: [{ count: 2, sides: 6 }], modifier: 8 }, type: "Slashing" }],
     },
     {
       kind: "attack",
@@ -251,7 +290,7 @@ const ADULT_RED_DRAGON = {
       attackType: "Melee",
       toHit: "14",
       reach: "15",
-      damages: [{ amount: "17 (2d8 + 8)", type: "Bludgeoning" }],
+      damages: [{ roll: { dice: [{ count: 2, sides: 8 }], modifier: 8 }, type: "Bludgeoning" }],
     },
     {
       kind: "other",
@@ -281,11 +320,11 @@ const ADULT_RED_DRAGON = {
 
 const BLANK = {
   name: "", size: "Medium", type: "", alignment: "", description: "",
-  ac: "", acNote: "", hp: "", speedWalk: "30", speeds: [],
+  ac: "", acNote: "", hp: { mode: "dice", dice: [], modifier: 0 }, speedWalk: "30", speeds: [],
   str: "10", dex: "10", con: "10", int: "10", wis: "10", cha: "10",
   savingThrows: [], skills: [],
-  vulnerabilities: "", resistances: "",
-  damageImmunities: "", conditionImmunities: "", senses: [], languages: "",
+  vulnerabilities: [], resistances: [],
+  damageImmunities: [], conditionImmunities: [], senses: [], languages: [],
   cr: "1",
   traits: [], actions: [], bonusActions: [], reactions: [],
   legendaryCount: "", legendaryActions: [],
@@ -297,8 +336,9 @@ const BLANK = {
  * ================================================================== */
 export default function App() {
   const [data, setData] = useState(ADULT_RED_DRAGON);
-  const [printMode, setPrintMode] = useState(false);
+  const [printBW, setPrintBW] = useState(false);
   const [verifyResult, setVerifyResult] = useState(null);
+  const [printPending, setPrintPending] = useState(null); // null | 'colour' | 'bw'
 
   const set = (k, v) => setData((d) => ({ ...d, [k]: v }));
 
@@ -329,8 +369,20 @@ export default function App() {
   const addAction = (list, kind) =>
     set(list, [...data[list], emptyAction(kind)]);
 
+  const doPrint = (bw) => {
+    setPrintBW(bw);
+    setTimeout(() => { window.print(); setPrintBW(false); }, 50);
+  };
+
+  const handlePrint = (bw) => {
+    const issues = validate(data);
+    if (issues.length === 0) { doPrint(bw); return; }
+    setVerifyResult(issues);
+    setPrintPending(bw ? 'bw' : 'colour');
+  };
+
   return (
-    <div className={"sg-root" + (printMode ? " print-preview" : "")}>
+    <div className={"sg-root" + (printBW ? " print-bw" : "")}>
       <style>{CSS}</style>
 
       {/* ---------------- Top toolbar ---------------- */}
@@ -346,16 +398,11 @@ export default function App() {
           <button className="btn" onClick={runVerify}>
             Verify
           </button>
-          <label className="toggle">
-            <input
-              type="checkbox"
-              checked={printMode}
-              onChange={(e) => setPrintMode(e.target.checked)}
-            />
-            <span>Print mode</span>
-          </label>
-          <button className="btn btn-primary" onClick={() => window.print()}>
-            Print
+          <button className="btn btn-primary" onClick={() => handlePrint(false)}>
+            Print (Colour)
+          </button>
+          <button className="btn btn-primary" onClick={() => handlePrint(true)}>
+            Print (B&amp;W)
           </button>
         </div>
       </header>
@@ -434,11 +481,7 @@ export default function App() {
               </div>
             </Field>
             <Field label="Hit Points" req>
-              <input
-                value={data.hp}
-                placeholder="256 (19d12+133)"
-                onChange={(e) => set("hp", e.target.value)}
-              />
+              <HpEditor hp={data.hp} onChange={(v) => set("hp", v)} />
             </Field>
             <Field label="Speed" req>
               <div className="kv-val">
@@ -461,8 +504,13 @@ export default function App() {
                   <label>{lbl}</label>
                   <input
                     type="number"
+                    min="0"
+                    max="30"
                     value={data[k]}
-                    onChange={(e) => set(k, e.target.value)}
+                    onChange={(e) => {
+                      const n = parseInt(e.target.value, 10);
+                      set(k, Number.isNaN(n) ? "" : String(Math.min(30, Math.max(0, n))));
+                    }}
                   />
                   <span className="ability-mod">{mod(data[k])}</span>
                 </div>
@@ -482,20 +530,20 @@ export default function App() {
                 update={updateItem} remove={removeItem} add={addKV} />
             </Field>
             <Field label="Damage Vulnerabilities">
-              <input value={data.vulnerabilities}
-                onChange={(e) => set("vulnerabilities", e.target.value)} />
+              <StringListEditor value={data.vulnerabilities} onChange={(v) => set("vulnerabilities", v)}
+                placeholder="e.g. Cold" addLabel="vulnerability" />
             </Field>
             <Field label="Damage Resistances">
-              <input value={data.resistances}
-                onChange={(e) => set("resistances", e.target.value)} />
+              <StringListEditor value={data.resistances} onChange={(v) => set("resistances", v)}
+                placeholder="e.g. Fire" addLabel="resistance" />
             </Field>
             <Field label="Damage Immunities">
-              <input value={data.damageImmunities}
-                onChange={(e) => set("damageImmunities", e.target.value)} />
+              <StringListEditor value={data.damageImmunities} onChange={(v) => set("damageImmunities", v)}
+                placeholder="e.g. Poison" addLabel="immunity" />
             </Field>
             <Field label="Condition Immunities">
-              <input value={data.conditionImmunities}
-                onChange={(e) => set("conditionImmunities", e.target.value)} />
+              <StringListEditor value={data.conditionImmunities} onChange={(v) => set("conditionImmunities", v)}
+                placeholder="e.g. Charmed" addLabel="immunity" />
             </Field>
             <Field label="Senses">
               <KeyValueAdder data={data} list="senses" keyField="sense"
@@ -505,8 +553,8 @@ export default function App() {
                 and added to the Senses line.</div>
             </Field>
             <Field label="Languages">
-              <input value={data.languages} placeholder="Common, Draconic"
-                onChange={(e) => set("languages", e.target.value)} />
+              <StringListEditor value={data.languages} onChange={(v) => set("languages", v)}
+                placeholder="e.g. Common" addLabel="language" />
             </Field>
             <Field label="Challenge Rating" req>
               <select value={data.cr} onChange={(e) => set("cr", e.target.value)}>
@@ -564,9 +612,25 @@ export default function App() {
 
         {/* ============== PREVIEW ============== */}
         <div className="preview">
-          <Statblock data={data} printMode={printMode} />
+          <Statblock data={data} />
         </div>
       </div>
+
+      {printPending !== null && (
+        <div className="modal-overlay">
+          <div className="modal">
+            <p className="modal-msg">Verification errors found! Are you sure you want to print?</p>
+            <div className="modal-actions">
+              <button className="btn btn-primary" onClick={() => { const bw = printPending === 'bw'; setPrintPending(null); doPrint(bw); }}>
+                Yes, print it!
+              </button>
+              <button className="btn" onClick={() => setPrintPending(null)}>
+                No, let me fix
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
@@ -574,7 +638,7 @@ export default function App() {
 /* ================================================================== *
  * Rendered statblock
  * ================================================================== */
-function Statblock({ data, printMode }) {
+function Statblock({ data }) {
   const cr = CR_BY_KEY[data.cr];
   const subtitle = [data.size, data.type].filter(Boolean).join(" ");
   const subline = data.alignment ? `${subtitle}, ${data.alignment}` : subtitle;
@@ -622,15 +686,16 @@ function Statblock({ data, printMode }) {
         : `${data.ac}`
       : "";
 
+  const joinList = (arr) => (arr || []).filter(Boolean).join(", ");
   const props = [
     ["Saving Throws", savesStr],
     ["Skills", skillsStr],
-    ["Damage Vulnerabilities", data.vulnerabilities],
-    ["Damage Resistances", data.resistances],
-    ["Damage Immunities", data.damageImmunities],
-    ["Condition Immunities", data.conditionImmunities],
+    ["Damage Vulnerabilities", joinList(data.vulnerabilities)],
+    ["Damage Resistances", joinList(data.resistances)],
+    ["Damage Immunities", joinList(data.damageImmunities)],
+    ["Condition Immunities", joinList(data.conditionImmunities)],
     ["Senses", sensesStr],
-    ["Languages", data.languages],
+    ["Languages", joinList(data.languages)],
   ].filter(([, v]) => v && v.trim());
 
   return (
@@ -643,7 +708,7 @@ function Statblock({ data, printMode }) {
         </div>
       )}
 
-      <div className={"sb" + (printMode ? " sb-print" : "")}>
+      <div className="sb">
         <Bar />
 
         <h2 className="sb-name">{data.name || "Unnamed Creature"}</h2>
@@ -653,7 +718,7 @@ function Statblock({ data, printMode }) {
 
         <div className="sb-red">
           {acStr && <PropInline name="Armor Class" value={acStr} />}
-          {data.hp && <PropInline name="Hit Points" value={data.hp} />}
+          {renderRoll(data.hp) && <PropInline name="Hit Points" value={renderRoll(data.hp)} />}
           {speedStr && <PropInline name="Speed" value={speedStr} />}
         </div>
 
@@ -862,6 +927,27 @@ function EntryList({ list, data, add, remove, update }) {
   );
 }
 
+/* Simple list of free-text values with per-item remove and an Add button. */
+function StringListEditor({ value, onChange, placeholder, addLabel }) {
+  const items = value || [];
+  const add = () => onChange([...items, ""]);
+  const update = (i, v) => onChange(items.map((x, idx) => (idx === i ? v : x)));
+  const remove = (i) => onChange(items.filter((_, idx) => idx !== i));
+  return (
+    <div className="str-list">
+      {items.map((item, i) => (
+        <div className="str-list-row" key={i}>
+          <input value={item} placeholder={placeholder}
+            onChange={(e) => update(i, e.target.value)} />
+          <button className="btn btn-sm btn-danger" title="Remove"
+            onClick={() => remove(i)}>✕</button>
+        </div>
+      ))}
+      <button className="btn btn-sm btn-add" onClick={add}>+ Add {addLabel}</button>
+    </div>
+  );
+}
+
 /* Constrained key/value rows: pick a key from a fixed list (no repeats)
    and give it a value. Used for saving throws, skills, senses, speeds. */
 function KeyValueAdder({ data, list, keyField, keys, suffix, isSigned, nonNeg, addLabel, update, remove, add }) {
@@ -905,30 +991,107 @@ function KeyValueAdder({ data, list, keyField, keys, suffix, isSigned, nonNeg, a
   );
 }
 
-/* Typed damage components for an attack: amount text + damage-type enum. */
+/* Hit Points editor: toggle between dice-roll and flat numeric input. */
+function HpEditor({ hp, onChange }) {
+  const h = hp || { mode: "dice", dice: [], modifier: 0 };
+  const mode = h.mode || "dice";
+  const setMode = (m) => {
+    if (m === mode) return;
+    if (m === "flat") {
+      const ev = h.dice && h.dice.length ? diceEV(h) : "";
+      onChange({ ...h, mode: "flat", flat: h.flat != null && h.flat !== "" ? h.flat : ev });
+    } else {
+      onChange({ ...h, mode: "dice" });
+    }
+  };
+  return (
+    <div className="hp-editor">
+      <div className="hp-mode-toggle">
+        <button className={`btn btn-sm${mode === "dice" ? " btn-toggle-active" : ""}`} onClick={() => setMode("dice")}>Dice</button>
+        <button className={`btn btn-sm${mode === "flat" ? " btn-toggle-active" : ""}`} onClick={() => setMode("flat")}>Flat</button>
+      </div>
+      {mode === "flat" ? (
+        <input type="number" min="1" value={h.flat ?? ""}
+          onChange={(e) => { const v = parseInt(e.target.value, 10); onChange({ mode: "flat", flat: Number.isNaN(v) ? "" : v }); }} />
+      ) : (
+        <DiceRollEditor roll={h} onChange={(r) => onChange({ ...r, mode: "dice" })} />
+      )}
+    </div>
+  );
+}
+
+/* Structured dice roll input.
+   Single group: [count] d [sides] + [modifier] [remove] — all on one line.
+   Multiple groups: each group on its own line, modifier row below. */
+function DiceRollEditor({ roll, onChange }) {
+  const r = roll || { dice: [], modifier: 0 };
+  const addDie = () => onChange({ ...r, dice: [...r.dice, { count: 1, sides: 6 }] });
+  const removeDie = (i) => onChange({ ...r, dice: r.dice.filter((_, idx) => idx !== i) });
+  const updateDie = (i, field, v) =>
+    onChange({ ...r, dice: r.dice.map((d, idx) => (idx === i ? { ...d, [field]: parseInt(v, 10) || 1 } : d)) });
+  const setModifier = (e) => {
+    const v = parseInt(e.target.value, 10);
+    onChange({ ...r, modifier: Number.isNaN(v) ? 0 : v });
+  };
+  const preview = renderRoll(r);
+  const multi = r.dice.length > 1;
+  return (
+    <div className="dice-editor">
+      {r.dice.map((d, i) => (
+        <div className="dice-row" key={i}>
+          <input type="number" min="1" value={d.count}
+            onChange={(e) => updateDie(i, "count", e.target.value)} />
+          <span className="dice-lbl">d</span>
+          <select value={d.sides} onChange={(e) => updateDie(i, "sides", e.target.value)}>
+            {DIE_SIDES.map((s) => <option key={s} value={s}>{s}</option>)}
+          </select>
+          {!multi && (
+            <>
+              <span className="dice-lbl">+</span>
+              <input type="number" className="dice-mod-input" value={r.modifier} onChange={setModifier} />
+            </>
+          )}
+          <button className="btn btn-sm btn-danger" title="Remove" onClick={() => removeDie(i)}>✕</button>
+        </div>
+      ))}
+      {multi && (
+        <div className="dice-mod-row">
+          <span className="kv-suffix">Modifier</span>
+          <input type="number" value={r.modifier} onChange={setModifier} />
+        </div>
+      )}
+      <div className="dice-footer">
+        <button className="btn btn-sm btn-add" onClick={addDie}>+ Add dice</button>
+        {preview && <span className="dice-preview">{preview}</span>}
+      </div>
+    </div>
+  );
+}
+
+/* Typed damage components for an attack: a DiceRoll + damage-type enum. */
 function DamageEditor({ damages, onChange }) {
   const list = damages || [];
-  const add = () => onChange([...list, { amount: "", type: "" }]);
+  const add = () => onChange([...list, { roll: { dice: [], modifier: 0 }, type: "" }]);
   const upd = (idx, field, v) =>
     onChange(list.map((d, i) => (i === idx ? { ...d, [field]: v } : d)));
   const rm = (idx) => onChange(list.filter((_, i) => i !== idx));
   return (
     <div className="dmg-list">
       {list.map((d, idx) => (
-        <div className="dmg-row" key={idx}>
-          <input
-            placeholder="e.g. 19 (2d10 + 8)"
-            value={d.amount || ""}
-            onChange={(e) => upd(idx, "amount", e.target.value)}
+        <div className="dmg-entry" key={idx}>
+          <div className="dmg-header">
+            <select value={d.type || ""} onChange={(e) => upd(idx, "type", e.target.value)}>
+              <option value="">type…</option>
+              {DAMAGE_TYPES.map((t) => (
+                <option key={t}>{t}</option>
+              ))}
+            </select>
+            <button className="btn btn-sm btn-danger" title="Remove" onClick={() => rm(idx)}>✕</button>
+          </div>
+          <DiceRollEditor
+            roll={d.roll || { dice: [], modifier: 0 }}
+            onChange={(r) => upd(idx, "roll", r)}
           />
-          <select value={d.type || ""} onChange={(e) => upd(idx, "type", e.target.value)}>
-            <option value="">type…</option>
-            {DAMAGE_TYPES.map((t) => (
-              <option key={t}>{t}</option>
-            ))}
-          </select>
-          <button className="btn btn-sm btn-danger" title="Remove"
-            onClick={() => rm(idx)}>✕</button>
         </div>
       ))}
       <button className="btn btn-sm btn-add" onClick={add}>+ Add damage</button>
@@ -1089,8 +1252,6 @@ const CSS = `
   position:sticky;top:0;z-index:10}
 .toolbar-title{font-family:var(--display);font-size:22px;letter-spacing:.04em;margin:0;color:#f1c27a}
 .toolbar-actions{display:flex;align-items:center;gap:10px;flex-wrap:wrap}
-.toggle{display:flex;align-items:center;gap:6px;font-size:14px;cursor:pointer;user-select:none}
-.toggle input{width:16px;height:16px}
 
 .btn{font-family:var(--sans);font-size:13px;padding:7px 13px;border-radius:6px;
   border:1px solid #00000022;background:#e8ddca;color:#2b1c14;cursor:pointer;font-weight:600}
@@ -1119,6 +1280,10 @@ const CSS = `
 .verify-banner.err{background:#fbe9e4;border-color:#d9a292;color:#7a1e0d}
 .verify-banner ul{margin:6px 0 0;padding-left:20px}
 .verify-banner li{margin:2px 0}
+.modal-overlay{position:fixed;inset:0;background:rgba(0,0,0,.45);display:flex;align-items:center;justify-content:center;z-index:1000}
+.modal{background:#fff;border-radius:10px;padding:28px 32px;max-width:380px;width:90%;box-shadow:0 8px 32px rgba(0,0,0,.25)}
+.modal-msg{margin:0 0 20px;font-size:15px;line-height:1.5;color:#222}
+.modal-actions{display:flex;gap:10px;justify-content:flex-end}
 .ed-row{display:grid;grid-template-columns:1fr 1fr;gap:12px;align-items:start}
 input,select,textarea{font-family:var(--sans);font-size:14px;
   border:1px solid #cfcabb;border-radius:6px;background:#fcfbf8;color:#222;width:100%}
@@ -1168,8 +1333,28 @@ input:focus,select:focus,textarea:focus{outline:2px solid var(--maroon)55;border
 .kv-pre{font-size:14px;color:#777}
 .add-row{display:flex;gap:8px;flex-wrap:wrap}
 .atk-sub-label{font-size:12px;font-weight:600;color:#555;margin-top:2px}
+.str-list{display:flex;flex-direction:column;gap:6px}
+.str-list-row{display:flex;gap:6px;align-items:center}
+.str-list-row input{flex:1}
 .dmg-list{display:flex;flex-direction:column;gap:7px}
-.dmg-row{display:grid;grid-template-columns:1fr 128px auto;gap:8px;align-items:center}
+.dmg-entry{border:1px dashed #cfc6b3;border-radius:6px;padding:6px 8px;background:#fdf9f3}
+.dmg-header{display:flex;align-items:center;gap:8px;margin-bottom:6px}
+.dmg-header select{flex:1}
+.hp-editor{display:flex;flex-direction:column;gap:6px}
+.hp-mode-toggle{display:flex;gap:0}
+.hp-mode-toggle .btn{border-radius:0;border:1px solid #b9a98a;background:#f5f0e8;color:#555;padding:2px 10px;font-size:12px}
+.hp-mode-toggle .btn:first-child{border-radius:4px 0 0 4px}
+.hp-mode-toggle .btn:last-child{border-radius:0 4px 4px 0;border-left:none}
+.hp-mode-toggle .btn-toggle-active{background:var(--maroon);color:#fff;border-color:var(--maroon)}
+.dice-editor{display:flex;flex-direction:column;gap:6px;margin-top:2px}
+.dice-row{display:flex;align-items:center;gap:6px}
+.dice-row input[type=number]{width:52px;text-align:center;padding:0 4px}
+.dice-mod-input{width:64px !important}
+.dice-lbl{font-size:13px;color:#777}
+.dice-mod-row{display:flex;align-items:center;gap:8px}
+.dice-mod-row input{width:80px;text-align:right}
+.dice-footer{display:flex;align-items:center;gap:10px}
+.dice-preview{font-size:12px;color:#555;font-style:italic}
 
 /* ===================== STATBLOCK ===================== */
 .preview{position:relative}
@@ -1222,31 +1407,7 @@ input:focus,select:focus,textarea:focus{outline:2px solid var(--maroon)55;border
 .sb-entry{margin:0;font-size:14.5px}
 .entry-name{font-weight:700;font-style:italic}
 
-/* ===================== PRINT / INK-SAVER ===================== */
-/* On-screen toggle */
-.sb-print{
-  background:#fff !important;
-  background-image:none !important;
-  box-shadow:none !important;
-  border:1.5px solid #000 !important;
-  color:#000 !important;
-}
-.sb-print .sb-name,
-.sb-print .sb-subtitle,
-.sb-print .prop,
-.sb-print .prop-name,
-.sb-print .sb-abilities th,
-.sb-print .sb-abilities td,
-.sb-print .sb-section,
-.sb-print .entry-name,
-.sb-print .sb-entry,
-.sb-print .sb-intro{color:#000 !important}
-.sb-print .sb-bar{background:#000 !important;height:2px;clip-path:none}
-.sb-print .sb-section{border-bottom:1.5px solid #000}
-.print-preview .desc-box{background:#fff;border-color:#000}
-.print-preview .desc-box p,.print-preview .desc-label{color:#000}
-
-/* Actual paper output: always ink-saving, editor hidden */
+/* ===================== PRINT ===================== */
 @media print{
   .no-print{display:none !important}
   .sg-root{background:#fff}
@@ -1254,15 +1415,19 @@ input:focus,select:focus,textarea:focus{outline:2px solid var(--maroon)55;border
   .layout{display:block;padding:0;max-width:none}
   .preview{padding:0}
   .sb-wrap{max-width:none}
-  .sb{
+  .sb{box-shadow:none !important}
+  .sb-entries{display:block}
+  .sb-entry{break-inside:avoid;margin-bottom:7px}
+  .sb-section{break-after:avoid}
+  .sb-intro{break-after:avoid}
+  .print-bw .sb{
     background:#fff !important;background-image:none !important;
-    box-shadow:none !important;border:1.5px solid #000 !important;color:#000 !important;
-    break-inside:avoid;
+    border:1.5px solid #000 !important;color:#000 !important;
   }
-  .sb *{color:#000 !important}
-  .sb-bar{background:#000 !important;height:2px;clip-path:none}
-  .sb-section{border-bottom:1.5px solid #000 !important}
-  .desc-box{border-color:#000}
-  .desc-box *{color:#000 !important}
+  .print-bw .sb *{color:#000 !important}
+  .print-bw .sb-bar{background:#000 !important;height:2px;clip-path:none}
+  .print-bw .sb-section{border-bottom:1.5px solid #000 !important}
+  .print-bw .desc-box{border-color:#000}
+  .print-bw .desc-box *{color:#000 !important}
 }
 `;

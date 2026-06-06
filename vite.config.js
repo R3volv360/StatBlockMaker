@@ -4,6 +4,9 @@ import react from '@vitejs/plugin-react'
 // https://vite.dev/config/
 export default defineConfig({
   plugins: [react()],
+  test: {
+    environment: "node",
+  },
   // IMPORTANT for GitHub Pages project sites:
   // assets are served from https://<user>.github.io/<repo>/ , not the root.
   // This must match your repository name, with slashes on both sides.

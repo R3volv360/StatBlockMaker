@@ -30,18 +30,22 @@ jobs:
       - name: Set up Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: 20
+          node-version: 22
           cache: npm
 
       # 3. Download the project's dependencies (React, Vite, etc.).
       - name: Install dependencies
         run: npm ci
 
-      # 4. Compile + bundle the app into the dist/ folder.
+      # 4. Run the test suite — build is skipped if tests fail.
+      - name: Test
+        run: npm test
+
+      # 5. Compile + bundle the app into the dist/ folder.
       - name: Build
         run: npm run build
 
-      # 5. Hand the dist/ folder to the Pages deploy step.
+      # 6. Hand the dist/ folder to the Pages deploy step.
       - name: Upload build output
         uses: actions/upload-pages-artifact@v3
         with:
@@ -51,6 +55,8 @@ jobs:
     # Only deploy after the build job succeeds.
     needs: build
     runs-on: ubuntu-latest
+    env:
+      FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
     environment:
       name: github-pages
       url: ${{ steps.deployment.outputs.page_url }}
