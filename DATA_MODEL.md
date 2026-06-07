@@ -28,6 +28,26 @@ Examples:
 
 ---
 
+## HpValue type
+
+The `hp` field uses a discriminated union keyed on `mode`:
+
+**Dice mode** (default)
+```js
+{ mode: "dice", dice: [{ count: number, sides: number }], modifier: number }
+```
+Same structure as `DiceRoll` plus the `mode` discriminator. Renders as `"19 (2d10 + 8)"`.
+
+**Flat mode**
+```js
+{ mode: "flat", flat: number }
+```
+A plain integer HP value with no dice expression. Renders as just the number, e.g. `"195"`.
+
+Switching modes in the editor preserves the other mode's data on the object so toggling back is lossless.
+
+---
+
 ## Required fields
 
 The `validate()` function checks these fields before printing. Missing ones are surfaced in the Verify banner.
@@ -39,7 +59,7 @@ The `validate()` function checks these fields before printing. Missing ones are 
 | `type` | Free text — e.g. `dragon`, `humanoid (orc)` |
 | `alignment` | One of the 9 standard alignments or `Unaligned` |
 | `ac` | Armor Class — positive integer string |
-| `hp` | Hit Points — `DiceRoll`; required to have at least one die with count ≥ 1 |
+| `hp` | Hit Points — `HpValue`; dice mode requires at least one die with count ≥ 1; flat mode requires a non-empty integer |
 | `speedWalk` | Walking speed in ft. — non-negative integer string |
 | `str` `dex` `con` `int` `wis` `cha` | Ability scores — integer strings, clamped 0–30, default `10` |
 | `cr` | Challenge Rating — see [CR values](#challenge-rating) |
@@ -66,7 +86,7 @@ The `validate()` function checks these fields before printing. Missing ones are 
 |---|---|---|---|
 | `ac` | Yes | string | Positive integer |
 | `acNote` | No | string | Parenthetical label, e.g. `Natural Armor` |
-| `hp` | Yes | DiceRoll | At least one die with count ≥ 1 required; see [DiceRoll type](#diceroll-type) |
+| `hp` | Yes | HpValue | Dice mode: at least one die with count ≥ 1; flat mode: non-empty integer; see [HpValue type](#hpvalue-type) |
 | `speedWalk` | Yes | string | Non-negative integer, ft. |
 | `speeds` | No | `SpeedEntry[]` | Additional movement modes; see below |
 

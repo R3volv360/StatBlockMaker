@@ -19,13 +19,17 @@ This is a single-page React app (Vite + React 19) for building D&D 5e monster st
 
 ### Data model
 
-All creature state is a single flat object (`data`) held in `useState`. The shape mirrors the printed stat block: identity fields, combat stats, six ability scores, lists for saves/skills/senses/speeds, and action arrays. See `BLANK` and `ADULT_RED_DRAGON` constants for the canonical shapes.
+All creature state is a single flat object (`data`) held in `useState`. The shape mirrors the printed stat block: identity fields, combat stats, six ability scores, lists for saves/skills/senses/speeds, and action arrays. `BLANK` (in `App.jsx`) is the canonical empty shape; the Adult Red Dragon seed data lives in **`src/data/adult-red-dragon.json`** and is imported statically at the top of `App.jsx`.
 
 Action entries have a `kind` field — `"attack"` (structured fields: `toHit`, `reach`/`rangeNormal`/`rangeLong`, `damages[]`) or `"other"` (free-text `desc`). Both shapes coexist on the same object; the editor toggles between them without discarding hidden fields.
 
 `CR_TABLE` is the authoritative source for XP and proficiency bonus — those values are always derived from CR, never user inputs.
 
 For the full field reference including types, enums, and constraints, see **[DATA_MODEL.md](./DATA_MODEL.md)**.
+
+### Serialization
+
+`exportStatBlock(data)` and `importStatBlock(jsonString)` are exported from `App.jsx` and handle JSON round-tripping. The wire format is `{ version: 1, statblock: { ...creature fields } }`. `importStatBlock` throws on invalid JSON, unknown versions, or a missing statblock key; it fills in missing optional fields from blank defaults and normalises `hp` objects that lack a `mode` field to `"dice"` mode. The **Export** toolbar button triggers a browser download named after the creature; the **Import** button opens a file picker and replaces the current editor state.
 
 ### Two-pane layout
 
@@ -63,4 +67,4 @@ npm test          # run once
 npm run test:watch  # watch mode
 ```
 
-Tests live in `src/__tests__/` and use Vitest. Pure logic functions exported from `App.jsx` are the primary test targets: `mod`, `rawMod`, `signed`, `endPunct`, `renderDamage`, and `validate`.
+Tests live in `src/__tests__/` and use Vitest. Pure logic functions exported from `App.jsx` are the primary test targets: `mod`, `rawMod`, `signed`, `endPunct`, `renderDamage`, `validate`, `exportStatBlock`, and `importStatBlock`.

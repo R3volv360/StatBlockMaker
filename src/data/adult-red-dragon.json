@@ -1,0 +1,115 @@
+{
+  "name": "Adult Red Dragon",
+  "size": "Huge",
+  "type": "dragon",
+  "alignment": "Chaotic Evil",
+  "description": "The most covetous of the true dragons, red dragons tirelessly seek to increase their treasure hoards. They are exceptionally vain, even for dragons, and a red dragon's ego is bound up in its sense of superiority over all other creatures.",
+  "ac": "19",
+  "acNote": "Natural Armor",
+  "hp": { "mode": "dice", "dice": [{ "count": 19, "sides": 12 }], "modifier": 133 },
+  "speedWalk": "40",
+  "speeds": [
+    { "mode": "Climb", "value": "40" },
+    { "mode": "Fly", "value": "80" }
+  ],
+  "str": "27", "dex": "10", "con": "25", "int": "16", "wis": "13", "cha": "21",
+  "savingThrows": [
+    { "ability": "dex", "value": "6" },
+    { "ability": "con", "value": "13" },
+    { "ability": "wis", "value": "7" },
+    { "ability": "cha", "value": "11" }
+  ],
+  "skills": [
+    { "skill": "Perception", "value": "13" },
+    { "skill": "Stealth", "value": "6" }
+  ],
+  "vulnerabilities": [],
+  "resistances": [],
+  "damageImmunities": ["Fire"],
+  "conditionImmunities": [],
+  "senses": [
+    { "sense": "Blindsight", "value": "60" },
+    { "sense": "Darkvision", "value": "120" }
+  ],
+  "languages": ["Common", "Draconic"],
+  "cr": "17",
+  "traits": [
+    {
+      "name": "Legendary Resistance (3/Day)",
+      "desc": "If the dragon fails a saving throw, it can choose to succeed instead."
+    }
+  ],
+  "actions": [
+    {
+      "kind": "other",
+      "name": "Multiattack",
+      "desc": "The dragon can use its Frightful Presence. It then makes three attacks: one with its bite and two with its claws."
+    },
+    {
+      "kind": "attack",
+      "name": "Bite",
+      "attackType": "Melee",
+      "toHit": "14",
+      "reach": "10",
+      "rangeNormal": "",
+      "rangeLong": "",
+      "damages": [
+        { "roll": { "dice": [{ "count": 2, "sides": 10 }], "modifier": 8 }, "type": "Piercing" },
+        { "roll": { "dice": [{ "count": 2, "sides": 6 }], "modifier": 0 }, "type": "Fire" }
+      ],
+      "extra": "",
+      "desc": ""
+    },
+    {
+      "kind": "attack",
+      "name": "Claw",
+      "attackType": "Melee",
+      "toHit": "14",
+      "reach": "5",
+      "rangeNormal": "",
+      "rangeLong": "",
+      "damages": [
+        { "roll": { "dice": [{ "count": 2, "sides": 6 }], "modifier": 8 }, "type": "Slashing" }
+      ],
+      "extra": "",
+      "desc": ""
+    },
+    {
+      "kind": "attack",
+      "name": "Tail",
+      "attackType": "Melee",
+      "toHit": "14",
+      "reach": "15",
+      "rangeNormal": "",
+      "rangeLong": "",
+      "damages": [
+        { "roll": { "dice": [{ "count": 2, "sides": 8 }], "modifier": 8 }, "type": "Bludgeoning" }
+      ],
+      "extra": "",
+      "desc": ""
+    },
+    {
+      "kind": "other",
+      "name": "Frightful Presence",
+      "desc": "Each creature of the dragon's choice that is within 120 ft. of the dragon and aware of it must succeed on a DC 19 Wisdom saving throw or become frightened for 1 minute. A creature can repeat the saving throw at the end of each of its turns, ending the effect on itself on a success. If a creature's saving throw is successful or the effect ends for it, the creature is immune to the dragon's Frightful Presence for the next 24 hours."
+    },
+    {
+      "kind": "other",
+      "name": "Fire Breath (Recharge 5–6)",
+      "desc": "The dragon exhales fire in a 60-foot cone. Each creature in that area must make a DC 21 Dexterity saving throw, taking 63 (18d6) fire damage on a failed save, or half as much damage on a successful one."
+    }
+  ],
+  "bonusActions": [],
+  "reactions": [],
+  "legendaryCount": "3",
+  "legendaryActions": [
+    { "name": "Detect", "desc": "The dragon makes a Wisdom (Perception) check." },
+    { "name": "Tail Attack", "desc": "The dragon makes a tail attack." },
+    {
+      "name": "Wing Attack (Costs 2 Actions)",
+      "desc": "The dragon beats its wings. Each creature within 10 ft. of the dragon must succeed on a DC 22 Dexterity saving throw or take 15 (2d6 + 8) bludgeoning damage and be knocked prone. The dragon can then fly up to half its flying speed."
+    }
+  ],
+  "lairActions": "",
+  "regionalEffects": ""
+}

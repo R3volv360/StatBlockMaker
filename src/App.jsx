@@ -1,4 +1,5 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef } from "react";
+import ADULT_RED_DRAGON from "./data/adult-red-dragon.json";
 
 /* ------------------------------------------------------------------ *
  * Challenge Rating table — the backbone enum.
@@ -186,6 +187,66 @@ const renderRoll = (roll) => {
   return str ? `${diceEV(roll)} (${str})` : "";
 };
 
+/* ------------------------------------------------------------------ *
+ * Serialization — JSON export / import for stat blocks.
+ * Format: { version: 1, statblock: { ...creature fields } }
+ * ------------------------------------------------------------------ */
+const STATBLOCK_VERSION = 1;
+
+const KNOWN_FIELDS = [
+  "name", "size", "type", "alignment", "description",
+  "ac", "acNote", "hp", "speedWalk", "speeds",
+  "str", "dex", "con", "int", "wis", "cha",
+  "savingThrows", "skills",
+  "vulnerabilities", "resistances", "damageImmunities", "conditionImmunities",
+  "senses", "languages", "cr",
+  "traits", "actions", "bonusActions", "reactions",
+  "legendaryCount", "legendaryActions",
+  "lairActions", "regionalEffects",
+];
+
+export function exportStatBlock(data) {
+  return JSON.stringify({ version: STATBLOCK_VERSION, statblock: data }, null, 2);
+}
+
+export function importStatBlock(json) {
+  if (typeof json !== "string") throw new Error("Input must be a JSON string");
+  let parsed;
+  try {
+    parsed = JSON.parse(json);
+  } catch {
+    throw new Error("Invalid JSON");
+  }
+  if (parsed.version !== STATBLOCK_VERSION) throw new Error(`Unsupported version: ${parsed.version}`);
+  if (!parsed.statblock || typeof parsed.statblock !== "object") throw new Error("Missing statblock data");
+
+  const src = parsed.statblock;
+  const result = {};
+  for (const key of KNOWN_FIELDS) {
+    if (key in src) result[key] = src[key];
+  }
+
+  // Normalise hp: ensure mode is set
+  if (result.hp && typeof result.hp === "object" && !result.hp.mode) {
+    result.hp = { mode: "dice", ...result.hp };
+  }
+
+  // Fill missing optional fields from blank defaults
+  const BLANK_DEFAULTS = {
+    description: "", acNote: "", speeds: [],
+    savingThrows: [], skills: [],
+    vulnerabilities: [], resistances: [], damageImmunities: [], conditionImmunities: [],
+    senses: [], languages: [],
+    traits: [], bonusActions: [], reactions: [],
+    legendaryCount: "", lairActions: "", regionalEffects: "",
+  };
+  for (const [key, val] of Object.entries(BLANK_DEFAULTS)) {
+    if (!(key in result)) result[key] = val;
+  }
+
+  return result;
+}
+
 /* Required-field validation. Returns a list of human-readable issues. */
 const isBlank = (v) => v == null || String(v).trim() === "";
 const isBlankRoll = (roll) => {
@@ -214,109 +275,6 @@ export function validate(d) {
   return issues;
 }
 
-/* ------------------------------------------------------------------ *
- * Default / seed data: the Adult Red Dragon example.
- * ------------------------------------------------------------------ */
-const ADULT_RED_DRAGON = {
-  name: "Adult Red Dragon",
-  size: "Huge",
-  type: "dragon",
-  alignment: "Chaotic Evil",
-  description:
-    "The most covetous of the true dragons, red dragons tirelessly seek to increase their treasure hoards. They are exceptionally vain, even for dragons, and a red dragon's ego is bound up in its sense of superiority over all other creatures.",
-  ac: "19",
-  acNote: "Natural Armor",
-  hp: { dice: [{ count: 19, sides: 12 }], modifier: 133 },
-  speedWalk: "40",
-  speeds: [
-    { mode: "Climb", value: "40" },
-    { mode: "Fly", value: "80" },
-  ],
-  str: "27", dex: "10", con: "25", int: "16", wis: "13", cha: "21",
-  savingThrows: [
-    { ability: "dex", value: "6" },
-    { ability: "con", value: "13" },
-    { ability: "wis", value: "7" },
-    { ability: "cha", value: "11" },
-  ],
-  skills: [
-    { skill: "Perception", value: "13" },
-    { skill: "Stealth", value: "6" },
-  ],
-  vulnerabilities: [],
-  resistances: [],
-  damageImmunities: ["Fire"],
-  conditionImmunities: [],
-  senses: [
-    { sense: "Blindsight", value: "60" },
-    { sense: "Darkvision", value: "120" },
-  ],
-  languages: ["Common", "Draconic"],
-  cr: "17",
-  traits: [
-    {
-      name: "Legendary Resistance (3/Day)",
-      desc: "If the dragon fails a saving throw, it can choose to succeed instead.",
-    },
-  ],
-  actions: [
-    {
-      kind: "other",
-      name: "Multiattack",
-      desc: "The dragon can use its Frightful Presence. It then makes three attacks: one with its bite and two with its claws.",
-    },
-    {
-      kind: "attack",
-      name: "Bite",
-      attackType: "Melee",
-      toHit: "14",
-      reach: "10",
-      damages: [
-        { roll: { dice: [{ count: 2, sides: 10 }], modifier: 8 }, type: "Piercing" },
-        { roll: { dice: [{ count: 2, sides: 6 }], modifier: 0 }, type: "Fire" },
-      ],
-    },
-    {
-      kind: "attack",
-      name: "Claw",
-      attackType: "Melee",
-      toHit: "14",
-      reach: "5",
-      damages: [{ roll: { dice: [{ count: 2, sides: 6 }], modifier: 8 }, type: "Slashing" }],
-    },
-    {
-      kind: "attack",
-      name: "Tail",
-      attackType: "Melee",
-      toHit: "14",
-      reach: "15",
-      damages: [{ roll: { dice: [{ count: 2, sides: 8 }], modifier: 8 }, type: "Bludgeoning" }],
-    },
-    {
-      kind: "other",
-      name: "Frightful Presence",
-      desc: "Each creature of the dragon's choice that is within 120 ft. of the dragon and aware of it must succeed on a DC 19 Wisdom saving throw or become frightened for 1 minute. A creature can repeat the saving throw at the end of each of its turns, ending the effect on itself on a success. If a creature's saving throw is successful or the effect ends for it, the creature is immune to the dragon's Frightful Presence for the next 24 hours.",
-    },
-    {
-      kind: "other",
-      name: "Fire Breath (Recharge 5–6)",
-      desc: "The dragon exhales fire in a 60-foot cone. Each creature in that area must make a DC 21 Dexterity saving throw, taking 63 (18d6) fire damage on a failed save, or half as much damage on a successful one.",
-    },
-  ],
-  bonusActions: [],
-  reactions: [],
-  legendaryCount: "3",
-  legendaryActions: [
-    { name: "Detect", desc: "The dragon makes a Wisdom (Perception) check." },
-    { name: "Tail Attack", desc: "The dragon makes a tail attack." },
-    {
-      name: "Wing Attack (Costs 2 Actions)",
-      desc: "The dragon beats its wings. Each creature within 10 ft. of the dragon must succeed on a DC 22 Dexterity saving throw or take 15 (2d6 + 8) bludgeoning damage and be knocked prone. The dragon can then fly up to half its flying speed.",
-    },
-  ],
-  lairActions: "",
-  regionalEffects: "",
-};
 
 const BLANK = {
   name: "", size: "Medium", type: "", alignment: "", description: "",
@@ -339,6 +297,8 @@ export default function App() {
   const [printBW, setPrintBW] = useState(false);
   const [verifyResult, setVerifyResult] = useState(null);
   const [printPending, setPrintPending] = useState(null); // null | 'colour' | 'bw'
+  const [importError, setImportError] = useState(null);
+  const importInputRef = useRef(null);
 
   const set = (k, v) => setData((d) => ({ ...d, [k]: v }));
 
@@ -381,6 +341,34 @@ export default function App() {
     setPrintPending(bw ? 'bw' : 'colour');
   };
 
+  const handleExport = () => {
+    const json = exportStatBlock(data);
+    const slug = (data.name || "statblock")
+      .toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/, "");
+    const url = URL.createObjectURL(new Blob([json], { type: "application/json" }));
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = `${slug}.json`;
+    a.click();
+    URL.revokeObjectURL(url);
+  };
+
+  const handleImportFile = (e) => {
+    const file = e.target.files?.[0];
+    e.target.value = "";
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = (ev) => {
+      try {
+        setData(importStatBlock(ev.target.result));
+        setImportError(null);
+      } catch (err) {
+        setImportError(err.message || "Could not read file.");
+      }
+    };
+    reader.readAsText(file);
+  };
+
   return (
     <div className={"sg-root" + (printBW ? " print-bw" : "")}>
       <style>{CSS}</style>
@@ -395,6 +383,19 @@ export default function App() {
           <button className="btn" onClick={() => setData(BLANK)}>
             Clear
           </button>
+          <button className="btn" onClick={() => importInputRef.current.click()}>
+            Import
+          </button>
+          <button className="btn" onClick={handleExport}>
+            Export
+          </button>
+          <input
+            ref={importInputRef}
+            type="file"
+            accept=".json,application/json"
+            style={{ display: "none" }}
+            onChange={handleImportFile}
+          />
           <button className="btn" onClick={runVerify}>
             Verify
           </button>
@@ -410,6 +411,13 @@ export default function App() {
       <div className="layout">
         {/* ============== EDITOR ============== */}
         <div className="editor no-print">
+          {importError && (
+            <div className="verify-banner err">
+              <strong>Import failed:</strong> {importError}
+              <button className="btn btn-sm btn-danger" style={{ marginLeft: 12 }}
+                onClick={() => setImportError(null)}>Dismiss</button>
+            </div>
+          )}
           {verifyResult && (
             <div className={"verify-banner " + (verifyResult.length === 0 ? "ok" : "err")}>
               {verifyResult.length === 0 ? (
@@ -504,7 +512,7 @@ export default function App() {
                   <label>{lbl}</label>
                   <input
                     type="number"
-                    min="0"
+                    min="1"
                     max="30"
                     value={data[k]}
                     onChange={(e) => {
